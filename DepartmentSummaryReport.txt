@@ -1,0 +1,30 @@
+<# Department Summary Report
+Associates department prefix with Title and Description
+#>
+
+# Set timestamp and output path
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$outputPath = "C:\Users\bkford\OneDrive - TBC\Desktop\Powershell-test\DepartmentTitleDesc-$timestamp.csv"
+
+# Get users with necessary properties
+$users = Get-ADUser -Filter {Enabled -eq $true} -Properties Department, Title, Description
+
+# Build simplified report
+$Report = foreach ($user in $users) {
+    $dept = $user.Department
+    $deptCode = if ($dept -and $dept.Length -ge 3) { $dept.Substring(0,3) } else { $dept }
+
+    [PSCustomObject]@{
+        DeptCode     = $deptCode
+        Department   = $user.Department
+        Title        = $user.Title
+        Description  = $user.Description
+    }
+}
+
+# Export to CSV
+$Report | Export-Csv -Path $outputPath -NoTypeInformation -Encoding UTF8
+
+Write-Host "✅ Department summary exported to: $outputPath"
+
+✅ Department summary exported to: C:\Users\bkford\OneDrive - TBC\Desktop\Powershell-test\DepartmentTitleDesc-20250414-153215.csv

@@ -1,0 +1,50 @@
+<# 
+GroupAudit_SingleLine.ps1
+Lists all enabled users with their details and all AD group memberships in a single row.
+Exports to a timestamped CSV file.
+#>
+
+# Timestamp for export
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$outputPath = "C:\Users\bkford\OneDrive - TBC\Desktop\Powershell-test\AD_User_Group_Summary_$timestamp.csv"
+
+# Get all enabled users with needed properties
+$users = Get-ADUser -Filter {Enabled -eq $true} -Properties * |
+    Select-Object DisplayName, SAMAccountName, Name, Office, Description, TelephoneNumber, IPPhone, Department, JobTitle, Company, MemberOf, LastLogonDate |
+    Sort-Object -Property LastLogonDate -Descending
+
+# Build the report
+$Report = foreach ($user in $users) {
+    # Get group names or leave blank
+    $groupNames = if ($user.MemberOf) {
+        $user.MemberOf | ForEach-Object {
+            (Get-ADGroup $_).Name
+        } | Sort-Object | Out-String
+    } else {
+        ""
+    }
+
+    # Clean up the group list (remove newlines/extra spaces)
+    $groupList = ($groupNames -split "`r?`n" | Where-Object { $_ -ne "" }) -join ", "
+
+    # Create the object for each user
+    [PSCustomObject]@{
+        DisplayName     = [string]$user.DisplayName
+        Office          = [string]$user.Office
+        Description     = [string]$user.Description
+        TelephoneNumber = [string]$user.TelephoneNumber
+        IPPhone         = [string]$user.IPPhone
+        Department      = [string]$user.Department
+        JobTitle        = [string]$user.JobTitle
+        Company         = [string]$user.Company
+        LastLogonDate   = $user.LastLogonDate
+        UserName        = [string]$user.Name
+        SAMAccountName  = [string]$user.SAMAccountName
+        Groups          = $groupList
+    }
+}
+
+# Export to CSV
+$Report | Export-Csv -Path $outputPath -NoTypeInformation
+
+Write-Host "User group summary report saved to $outputPath"
